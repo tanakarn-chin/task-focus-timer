@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Focus Timer</title>
+    <link rel="icon" type="image/png" href="https://img.icons8.com/?size=100&id=1E6BXp7ZL3KJ&format=png&color=000000">
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for sound generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <style>
+        /* Custom font and blinking animation */
+        @import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@400;700&display=swap');
+        body {
+            font-family: 'Anuphan', sans-serif;
+            background-color: #0e1e35;
+            transition: background-color 0.5s linear;
+        }
+        /* Blinking animation for the last 10 seconds */
+        .blinking-text {
+            animation: blinker 1s linear infinite;
+        }
+        @keyframes blinker {
+            50% {
+                opacity: 0.2;
+            }
+        }
+        /* Background flashing animation for when time is up */
+        .bg-flashing {
+            animation: bg-flasher 1s linear infinite;
+        }
+        @keyframes bg-flasher {
+            50% {
+                background-color: #152b4b;
+            }
+        }
+        /* Utility classes for disabling form elements */
+        .disabled-form {
+            opacity: 0.25;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="text-white flex items-center justify-center min-h-screen p-4">
+
+    <main class="flex flex-col lg:flex-row gap-8 w-full max-w-4xl">
+        <!-- Main Timer Card -->
+        <div class="bg-gray-800/50 backdrop-blur-sm p-6 sm:p-8 rounded-2xl shadow-2xl w-full text-center flex-grow">
+            
+            <h1 class="text-3xl sm:text-4xl font-bold text-cyan-400 mb-4">Task Focus Timer</h1>
+            <p class="text-gray-400 mb-8">ตั้งสมาธิกับงานของคุณ</p>
+
+            <div id="timer-display" class="text-7xl sm:text-8xl font-bold text-white my-8 py-4 bg-black/20 rounded-lg">
+                00:00
+            </div>
+
+            <!-- Preset Timers -->
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-300 mb-3">การทำงาน</h2>
+                <div class="grid grid-cols-2 gap-3">
+                    <button data-minutes="25" data-type="การทำงาน" class="preset-btn bg-yellow-400 hover:bg-yellow-500 transition-all duration-300 text-gray-900 font-bold py-3 px-4 rounded-lg">25 นาที</button>
+                    <button data-minutes="60" data-type="การทำงาน" class="preset-btn bg-yellow-400 hover:bg-yellow-500 transition-all duration-300 text-gray-900 font-bold py-3 px-4 rounded-lg">60 นาที</button>
+                </div>
+            </div>
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-300 mb-3">การหยุดพัก</h2>
+                <div class="grid grid-cols-2 gap-3">
+                    <button data-minutes="5" data-type="การหยุดพัก" class="preset-btn bg-green-400 hover:bg-green-500 transition-all duration-300 text-gray-900 font-bold py-3 px-4 rounded-lg">5 นาที</button>
+                    <button data-minutes="30" data-type="การหยุดพัก" class="preset-btn bg-green-400 hover:bg-green-500 transition-all duration-300 text-gray-900 font-bold py-3 px-4 rounded-lg">30 นาที</button>
+                </div>
+            </div>
+
+            <!-- Custom Timer Input -->
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-300 mb-3">หรือกำหนดเอง:</h2>
+                <div class="flex gap-3">
+                    <input type="number" id="custom-minutes" min="0" class="w-full bg-gray-700 border border-gray-600 text-white text-lg rounded-lg p-3 focus:ring-cyan-500 focus:border-cyan-500 transition-opacity duration-300" placeholder="นาที">
+                    <input type="number" id="custom-seconds" min="0" max="59" class="w-full bg-gray-700 border border-gray-600 text-white text-lg rounded-lg p-3 focus:ring-cyan-500 focus:border-cyan-500 transition-opacity duration-300" placeholder="วินาที">
+                </div>
+                <p id="error-message" class="text-red-500 text-sm mt-2 h-4"></p>
+            </div>
+            
+            <!-- Control Buttons -->
+            <div id="controls" class="mt-8 flex gap-3 justify-center">
+                 <button id="start-pause-resume-btn" class="bg-[#6db717] hover:bg-[#5a9a10] transition-all duration-300 text-white font-bold py-3 px-8 rounded-lg w-full sm:w-auto">เริ่ม</button>
+                 <button id="reset-btn" class="bg-red-600 hover:bg-red-700 transition-all duration-300 text-white font-bold py-3 px-8 rounded-lg w-full sm:w-auto hidden">รีเซ็ต</button>
+            </div>
+        </div>
+
+        <!-- History Card -->
+        <div class="bg-gray-800/50 backdrop-blur-sm p-6 sm:p-8 rounded-2xl shadow-2xl w-full lg:w-80 flex-shrink-0 flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-cyan-400">ประวัติ</h2>
+                <button id="clear-history-btn" class="text-sm text-cyan-400 hover:text-cyan-300 hover:underline">ล้างประวัติ</button>
+            </div>
+            <ul id="history-list" class="space-y-3 h-96 overflow-y-auto pr-2 flex-grow">
+                <!-- History items will be injected here -->
+                <li class="text-gray-500 text-center italic">ยังไม่มีประวัติการจับเวลา</li>
+            </ul>
+        </div>
+    </main>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
+            <h3 class="text-xl font-bold mb-4">ยืนยันการล้างประวัติ</h3>
+            <p class="text-gray-400 mb-8">คุณแน่ใจหรือไม่ว่าต้องการล้างประวัติทั้งหมด? การกระทำนี้ไม่สามารถย้อนกลับได้</p>
+            <div class="flex gap-4">
+                <button id="cancel-clear-btn" class="bg-gray-600 hover:bg-gray-500 transition-colors w-full text-white font-bold py-3 rounded-lg">ยกเลิก</button>
+                <button id="confirm-clear-btn" class="bg-red-600 hover:bg-red-500 transition-colors w-full text-white font-bold py-3 rounded-lg">ยืนยัน</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // DOM Elements
+        const bodyEl = document.querySelector('body');
+        const timerDisplay = document.getElementById('timer-display');
+        const customMinutesInput = document.getElementById('custom-minutes');
+        const customSecondsInput = document.getElementById('custom-seconds');
+        const startPauseResumeBtn = document.getElementById('start-pause-resume-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const presetBtns = document.querySelectorAll('.preset-btn');
+        const errorMessage = document.getElementById('error-message');
+        const historyList = document.getElementById('history-list');
+        const clearHistoryBtn = document.getElementById('clear-history-btn');
+        const confirmationModal = document.getElementById('confirmation-modal');
+        const confirmClearBtn = document.getElementById('confirm-clear-btn');
+        const cancelClearBtn = document.getElementById('cancel-clear-btn');
+
+        // Timer state variables
+        let timerInterval = null;
+        let titleBlinkInterval = null;
+        let timeLeftInSeconds = 0;
+        let timerState = 'idle'; // idle, running, paused, finished
+        let currentTimerType = 'กำหนดเอง';
+        let currentTimerDuration = 0;
+        const originalTitle = document.title;
+        let isAudioContextStarted = false;
+        let history = [];
+
+        // Initialize sound synth and alarm loop using Tone.js
+        const synth = new Tone.Synth().toDestination();
+        const alarm = new Tone.Loop(time => {
+            synth.triggerAttackRelease("C5", "8n", time);
+        }, "4n").start(0);
+
+        // --- Core Functions ---
+
+        /**
+         * Toggles the disabled state of form inputs and preset buttons.
+         * @param {boolean} shouldBeDisabled - True to disable, false to enable.
+         */
+        function toggleFormControls(shouldBeDisabled) {
+            presetBtns.forEach(btn => {
+                btn.disabled = shouldBeDisabled;
+                btn.classList.toggle('disabled-form', shouldBeDisabled);
+            });
+
+            customMinutesInput.disabled = shouldBeDisabled;
+            customSecondsInput.disabled = shouldBeDisabled;
+            customMinutesInput.classList.toggle('disabled-form', shouldBeDisabled);
+            customSecondsInput.classList.toggle('disabled-form', shouldBeDisabled);
+        }
+
+        function runCountdown() {
+            toggleFormControls(true); // Disable inputs when countdown starts
+            timerInterval = setInterval(() => {
+                timeLeftInSeconds--;
+                updateDisplay();
+
+                if (timeLeftInSeconds > 0 && timeLeftInSeconds <= 10) {
+                    timerDisplay.classList.add('blinking-text');
+                }
+
+                if (timeLeftInSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    timerState = 'finished';
+                    updateControls();
+                    timerDisplay.classList.remove('blinking-text');
+                    timerDisplay.textContent = "Time's Up";
+                    
+                    addHistoryItem();
+                    
+                    bodyEl.classList.add('bg-flashing');
+                    playSound();
+                    showNotification();
+                    startTitleBlinking();
+                }
+            }, 1000);
+        }
+
+        function startTimer(minutes, seconds) {
+            const totalSeconds = (minutes * 60) + seconds;
+            if (totalSeconds <= 0 || isNaN(totalSeconds)) {
+                errorMessage.textContent = "กรุณาใส่เวลาที่ถูกต้อง";
+                setTimeout(() => errorMessage.textContent = '', 3000);
+                return;
+            }
+
+            if (timerState === 'idle') {
+                timeLeftInSeconds = totalSeconds;
+                currentTimerDuration = totalSeconds;
+            }
+            
+            timerState = 'running';
+            updateControls();
+            stopTitleBlinking();
+            runCountdown();
+        }
+        
+        function pauseTimer() {
+            if (timerState !== 'running') return;
+            clearInterval(timerInterval);
+            timerState = 'paused';
+            updateControls();
+        }
+
+        function resumeTimer() {
+            if (timerState !== 'paused') return;
+            timerState = 'running';
+            updateControls();
+            runCountdown();
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            stopTitleBlinking();
+            stopSound();
+            bodyEl.classList.remove('bg-flashing');
+
+            timeLeftInSeconds = 0;
+            timerState = 'idle';
+            timerDisplay.classList.remove('blinking-text');
+            customMinutesInput.value = '';
+            customSecondsInput.value = '';
+            
+            toggleFormControls(false); // Re-enable inputs
+
+            updateDisplay();
+            updateControls();
+        }
+
+        function updateDisplay() {
+            if (timeLeftInSeconds < 0) timeLeftInSeconds = 0;
+            const minutes = Math.floor(timeLeftInSeconds / 60);
+            const seconds = timeLeftInSeconds % 60;
+            timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+        
+        function updateControls() {
+            // Reset button styles
+            startPauseResumeBtn.classList.remove('bg-orange-500', 'hover:bg-orange-600', 'bg-red-600', 'hover:bg-red-700');
+            startPauseResumeBtn.classList.add('bg-[#6db717]', 'hover:bg-[#5a9a10]');
+
+            if (timerState === 'running') {
+                startPauseResumeBtn.textContent = 'หยุดชั่วคราว';
+                startPauseResumeBtn.classList.replace('bg-[#6db717]', 'bg-orange-500');
+                startPauseResumeBtn.classList.replace('hover:bg-[#5a9a10]', 'hover:bg-orange-600');
+                resetBtn.classList.remove('hidden');
+            } else if (timerState === 'paused') {
+                startPauseResumeBtn.textContent = 'เริ่มต่อ';
+            } else if (timerState === 'finished') {
+                startPauseResumeBtn.textContent = 'รีเซ็ต';
+                startPauseResumeBtn.classList.replace('bg-[#6db717]', 'bg-red-600');
+                startPauseResumeBtn.classList.replace('hover:bg-[#5a9a10]', 'hover:bg-red-700');
+                resetBtn.classList.add('hidden');
+            } else { // idle
+                startPauseResumeBtn.textContent = 'เริ่ม';
+                resetBtn.classList.add('hidden');
+            }
+        }
+
+        async function startAudioContext() {
+            if (!isAudioContextStarted) {
+                await Tone.start();
+                isAudioContextStarted = true;
+            }
+        }
+
+        function playSound() {
+            Tone.Transport.start();
+            setTimeout(stopSound, 30000);
+        }
+        
+        function stopSound() {
+             if(Tone.Transport.state === 'started') {
+                Tone.Transport.stop();
+             }
+        }
+
+        function showNotification() {
+            if (Notification.permission === "granted") {
+                new Notification("หมดเวลาแล้ว!", {
+                    body: "พักผ่อนสักครู่ หรือเริ่มงานต่อไปได้เลย!",
+                    icon: "https://placehold.co/128x128/0e1e35/ffffff?text=OK"
+                });
+            }
+        }
+        
+        function startTitleBlinking() {
+            stopTitleBlinking();
+            let isToggled = false;
+            titleBlinkInterval = setInterval(() => {
+                document.title = isToggled ? originalTitle : "Time's up!";
+                isToggled = !isToggled;
+            }, 1000);
+        }
+
+        function stopTitleBlinking() {
+            clearInterval(titleBlinkInterval);
+            titleBlinkInterval = null;
+            document.title = originalTitle;
+        }
+
+        function addHistoryItem() {
+            const minutes = Math.floor(currentTimerDuration / 60);
+            const seconds = currentTimerDuration % 60;
+            const durationStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit'});
+
+            const newItem = {
+                type: currentTimerType,
+                duration: durationStr,
+                time: timeStr
+            };
+            history.push(newItem); // Add to the end of the array
+            if (history.length > 10) {
+                history.shift(); // Remove the oldest item from the beginning if history exceeds 10
+            }
+            updateHistoryDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            historyList.innerHTML = ''; // Clear current list
+            if (history.length === 0) {
+                historyList.innerHTML = '<li class="text-gray-500 text-center italic">ยังไม่มีประวัติการจับเวลา</li>';
+                return;
+            }
+            history.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'bg-black/20 p-3 rounded-lg flex justify-between items-center';
+                const typeColor = item.type === 'การทำงาน' ? 'text-yellow-400' : 'text-green-400';
+                li.innerHTML = `
+                    <div>
+                        <span class="font-bold ${typeColor}">${item.type}</span>
+                        <span class="text-gray-300 ml-2">${item.duration}</span>
+                    </div>
+                    <span class="text-gray-500 text-sm">${item.time}</span>
+                `;
+                historyList.appendChild(li);
+            });
+        }
+        
+        // --- Event Listeners ---
+        window.addEventListener('load', () => {
+            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                Notification.requestPermission();
+            }
+            updateHistoryDisplay();
+        });
+
+        // Prevent accidental refresh
+        window.addEventListener('beforeunload', (event) => {
+            if (timerState === 'running' || timerState === 'paused') {
+                event.preventDefault();
+                event.returnValue = ''; // Required for Chrome
+            }
+        });
+
+        presetBtns.forEach(button => {
+            button.addEventListener('click', () => {
+                startAudioContext();
+                resetTimer();
+                const minutes = parseInt(button.getAttribute('data-minutes'), 10);
+                currentTimerType = button.getAttribute('data-type');
+                startTimer(minutes, 0);
+            });
+        });
+
+        startPauseResumeBtn.addEventListener('click', () => {
+            startAudioContext();
+            if (timerState === 'finished') {
+                resetTimer();
+            } else if (timerState === 'idle') {
+                const minutes = parseInt(customMinutesInput.value) || 0;
+                const seconds = parseInt(customSecondsInput.value) || 0;
+                currentTimerType = 'กำหนดเอง';
+                startTimer(minutes, seconds);
+            } else if (timerState === 'running') {
+                pauseTimer();
+            } else if (timerState === 'paused') {
+                resumeTimer();
+            }
+        });
+
+        resetBtn.addEventListener('click', resetTimer);
+
+        // History Clear Listeners
+        clearHistoryBtn.addEventListener('click', () => {
+            confirmationModal.classList.remove('hidden');
+        });
+
+        cancelClearBtn.addEventListener('click', () => {
+            confirmationModal.classList.add('hidden');
+        });
+
+        confirmClearBtn.addEventListener('click', () => {
+            history = [];
+            updateHistoryDisplay();
+            confirmationModal.classList.add('hidden');
+        });
+        
+        updateDisplay();
+    </script>
+</body>
+</html>
