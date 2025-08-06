@@ -134,6 +134,7 @@
         let timerInterval = null;
         let titleBlinkInterval = null;
         let timeLeftInSeconds = 0;
+        let targetEndTime = 0; // The exact timestamp when the timer should end
         let timerState = 'idle'; // idle, running, paused, finished
         let currentTimerType = 'กำหนดเอง';
         let currentTimerDuration = 0;
@@ -146,6 +147,7 @@
         const alarm = new Tone.Loop(time => {
             synth.triggerAttackRelease("C5", "8n", time);
         }, "4n").start(0);
+
 
         // --- Core Functions ---
 
@@ -165,17 +167,32 @@
             customSecondsInput.classList.toggle('disabled-form', shouldBeDisabled);
         }
 
+        /**
+         * The main timer loop. It calculates the remaining time based on the system clock
+         * to avoid issues with browser tab throttling.
+         */
         function runCountdown() {
             toggleFormControls(true); // Disable inputs when countdown starts
-            timerInterval = setInterval(() => {
-                timeLeftInSeconds--;
-                updateDisplay();
+            
+            // Set the target end time only when the timer is not paused
+            if (timerState !== 'paused') {
+                targetEndTime = Date.now() + timeLeftInSeconds * 1000;
+            }
 
-                if (timeLeftInSeconds > 0 && timeLeftInSeconds <= 10) {
-                    timerDisplay.classList.add('blinking-text');
+            timerInterval = setInterval(() => {
+                // Calculate remaining time based on the target end time
+                const newTimeLeft = Math.round((targetEndTime - Date.now()) / 1000);
+                
+                // Prevent the timer from skipping a second on the display
+                if (newTimeLeft < timeLeftInSeconds) {
+                    timeLeftInSeconds = newTimeLeft;
+                    updateDisplay();
                 }
 
                 if (timeLeftInSeconds <= 0) {
+                    // Timer finished logic
+                    timeLeftInSeconds = 0; // Ensure it doesn't go negative
+                    updateDisplay();
                     clearInterval(timerInterval);
                     timerState = 'finished';
                     updateControls();
@@ -188,8 +205,15 @@
                     playSound();
                     showNotification();
                     startTitleBlinking();
+                } else {
+                     // Add/remove blinking effect
+                    if (timeLeftInSeconds <= 10) {
+                        timerDisplay.classList.add('blinking-text');
+                    } else {
+                        timerDisplay.classList.remove('blinking-text');
+                    }
                 }
-            }, 1000);
+            }, 250); // Check 4 times a second for a smoother display
         }
 
         function startTimer(minutes, seconds) {
@@ -200,10 +224,8 @@
                 return;
             }
 
-            if (timerState === 'idle') {
-                timeLeftInSeconds = totalSeconds;
-                currentTimerDuration = totalSeconds;
-            }
+            timeLeftInSeconds = totalSeconds;
+            currentTimerDuration = totalSeconds;
             
             timerState = 'running';
             updateControls();
@@ -214,12 +236,15 @@
         function pauseTimer() {
             if (timerState !== 'running') return;
             clearInterval(timerInterval);
+            // timeLeftInSeconds is already up-to-date from the last interval check
             timerState = 'paused';
             updateControls();
         }
 
         function resumeTimer() {
             if (timerState !== 'paused') return;
+            // Recalculate target end time based on remaining seconds
+            targetEndTime = Date.now() + timeLeftInSeconds * 1000;
             timerState = 'running';
             updateControls();
             runCountdown();
